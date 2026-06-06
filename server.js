@@ -1,4 +1,5 @@
-const express = require("express");
+No problem. Here's the updated server.js with Supabase token storage. Copy this entire file and deploy it to Render:
+javascriptconst express = require("express");
 const cors = require("cors");
 const { Configuration, PlaidApi, PlaidEnvironments } = require("plaid");
 const { createClient } = require("@supabase/supabase-js");
@@ -19,17 +20,13 @@ const plaidConfig = new Configuration({
 });
 
 const plaidClient = new PlaidApi(plaidConfig);
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 app.post("/api/create-link-token", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.body.userId || "default-user";
     const response = await plaidClient.linkTokenCreate({
-      user: { client_user_id: userId || "default-user" },
+      user: { client_user_id: userId },
       client_name: "Petal Finance",
       products: ["transactions"],
       country_codes: ["CA"],
@@ -48,14 +45,13 @@ app.post("/api/exchange-token", async (req, res) => {
     const { public_token, userId, institutionName } = req.body;
     const response = await plaidClient.itemPublicTokenExchange({ public_token });
     const access_token = response.data.access_token;
-    if (userId) {
-      await supabase.from("plaid_tokens").insert({
-        user_id: userId,
-        access_token,
-        institution_name: institutionName || "Bank",
-      });
-    }
-    res.json({ access_token });
+    const { data, error } = await supabase.from("plaid_tokens").insert({
+      user_id: userId,
+      access_token,
+      institution_name: institutionName || "Unknown",
+    }).select();
+    if (error) throw error;
+    res.json({ access_token, id: data[0].id });
   } catch (err) {
     console.error(err.response?.data || err.message);
     res.status(500).json({ error: "Failed to exchange token" });
@@ -65,10 +61,7 @@ app.post("/api/exchange-token", async (req, res) => {
 app.post("/api/get-tokens", async (req, res) => {
   try {
     const { userId } = req.body;
-    const { data, error } = await supabase
-      .from("plaid_tokens")
-      .select("*")
-      .eq("user_id", userId);
+    const { data, error } = await supabase.from("plaid_tokens").select("*").eq("user_id", userId);
     if (error) throw error;
     res.json({ tokens: data });
   } catch (err) {
@@ -80,18 +73,13 @@ app.post("/api/get-tokens", async (req, res) => {
 app.post("/api/delete-token", async (req, res) => {
   try {
     const { userId, tokenId } = req.body;
-    await supabase.from("plaid_tokens").delete().eq("id", tokenId).eq("user_id", userId);
+    const { error } = await supabase.from("plaid_tokens").delete().eq("id", tokenId).eq("user_id", userId);
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: "Failed to delete token" });
   }
-});
-
-app.post("/webhook", async (req, res) => {
-  const { webhook_type, webhook_code } = req.body;
-  console.log(`Webhook: ${webhook_type} / ${webhook_code}`);
-  res.json({ received: true });
 });
 
 app.post("/api/transaction-status", async (req, res) => {
@@ -115,7 +103,7 @@ app.post("/api/transaction-status", async (req, res) => {
       return res.json({ status: "pending", transactions: [] });
     }
     console.error(errData || err.message);
-    res.status(500).json({ error: "Failed to fetch transactions" });
+    res.status(500).json({ error: "Failed to check transaction status" });
   }
 });
 
@@ -128,6 +116,11 @@ app.post("/api/balances", async (req, res) => {
     console.error(err.response?.data || err.message);
     res.status(500).json({ error: "Failed to fetch balances" });
   }
+});
+
+app.post("/webhook", async (req, res) => {
+  console.log("Webhook received:", req.body);
+  res.json({ received: true });
 });
 
 const PORT = process.env.PORT || 3001;
