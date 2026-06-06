@@ -1,4 +1,4 @@
-javascriptconst express = require("express");
+const express = require("express");
 const cors = require("cors");
 const { Configuration, PlaidApi, PlaidEnvironments } = require("plaid");
 const { createClient } = require("@supabase/supabase-js");
