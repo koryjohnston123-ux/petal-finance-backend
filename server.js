@@ -5,7 +5,11 @@ const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ['https://vitejs-vite-7fzvzzww.vercel.app', 'https://petal-finance.netlify.app', 'http://localhost:5173'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
 
 const plaidConfig = new Configuration({
