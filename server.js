@@ -1,4 +1,3 @@
-No problem. Here's the updated server.js with Supabase token storage. Copy this entire file and deploy it to Render:
 javascriptconst express = require("express");
 const cors = require("cors");
 const { Configuration, PlaidApi, PlaidEnvironments } = require("plaid");
